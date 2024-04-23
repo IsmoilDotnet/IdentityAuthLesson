@@ -1,5 +1,7 @@
 ﻿using IdentityAuthLesson.DTOs;
 using IdentityAuthLesson.Models;
+using IdentityAuthLesson.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -9,18 +11,21 @@ namespace IdentityAuthLesson.Controllers
 {
     [Route("api/[controller]/[action]")]
     [ApiController]
+    //[Authorize]
     public class UsersController : ControllerBase
     {
         private readonly UserManager<AppUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
-
-        public UsersController(UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager)
+        private readonly IAuthService _authService;
+        public UsersController(UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager, IAuthService authService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
+            _authService = authService;
         }
 
         [HttpPost]
+        [AllowAnonymous]
         public async Task<ActionResult<string>> Register(RegisterDTO registerDto)
         {
             if (!ModelState.IsValid)
@@ -72,15 +77,25 @@ namespace IdentityAuthLesson.Controllers
                 return Unauthorized("Password invalid");
             }
 
-            return Ok("Welcomte the world");
+            var token = await _authService.GenerateToken(user);
+            return Ok(token);
         }
 
         [HttpGet]
+        public async Task<ActionResult<string>> GetByIdUser(string id)
+        {
+            var result = await _userManager.FindByIdAsync(id);
+            return Ok(result);
+        }
+
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<string>> GetAllUsers()
         {
             var result = await _userManager.Users.ToListAsync();
 
             return Ok(result);
         }
+
     }
 }
